@@ -1,0 +1,210 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Dijkstra</title>
+    <link type="text/css" rel="stylesheet" href="Style/reset.css">
+    <link type="text/css" rel="stylesheet" href="Style/mainStyle.css">
+</head>
+
+<body>
+    
+    <main>
+        <h1>Dijstra</h1>
+        <form id="width" name="LinkedListForm">
+        
+            <input name="input1" type="text" required>            
+            <input name="input2" type="text" required>            
+            <div class="button-wrapper">
+                <button id="button-add" type="button">aDD nODE</button>
+                <button id="button-connect" type="button">cONNECT nODES</button>
+                <button id="button-show" type="button">sHOW </button> 
+            </div>          
+        </form>        
+    </main>
+    
+    <!---------       (Graph Visualisation)       --------->
+    
+    <script type="text/javascript" src="JS/dracula-js-fork-master/raphael-min.js"></script>
+    <script type="text/javascript" src="JS/dracula-js-fork-master/dracula_graffle.js"></script>
+    <script type="text/javascript" src="JS/dracula-js-fork-master/dracula_graph.js"></script>
+    <script type="text/javascript" src="JS/dracula-js-fork-master/dracula_algorithms.js"></script>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    
+    <!---------       JS code       --------->
+    
+    <script>
+        
+		$('#width').submit(function(e){
+            e.preventDefault();
+			
+            let formData = $(this).serializeArray();            
+            console.dir(formData);
+            $.post('Dijkstra.php', formData, function(data){
+                console.dir(data);
+                var result = JSON.parse(data);        
+            });
+        });
+		
+        var g = new Graph(),
+            render = null,
+            dst = null;
+            g.addEdge2 = null;
+        
+        document.addEventListener('click', function(e){
+            var target = e.target;
+            let inputValue = null, inputNode = null;
+            switch(target){
+                case document.getElementById('button-add'): 
+                    inputValue = document.forms.LinkedListForm.elements.input1.value; 
+                    
+                    render = function(r, n) {
+                        var set = r.set().push(
+                            r.rect(n.point[0]-30, n.point[1]-13, 60, 44).attr({"fill": "#feb", r : "12px", "stroke-width" : n.distance == 0 ? "5px" : "3px" })).push(
+                            r.text(n.point[0], n.point[1] + 10, (n.label || n.id) + "\n(" + (n.distance == undefined ? "Infinity" : n.distance) + ")")).attr({"font-size": "12px", "font-weight": "bold"});
+                        return set;
+                    };
+                    g.addNode(inputValue, {render:render});
+                    break;
+                case document.getElementById('button-connect'): 
+                    inputValue = document.forms.LinkedListForm.elements.input1.value;
+                    inputNode = document.forms.LinkedListForm.elements.input2.value;
+                    
+                    if(!g.addEdge2){
+                        g.addEdge2 = g.addEdge;
+                        g.addEdge = function(from, to, style) { !style && (style={}); style.weight = Math.floor(Math.random()*10) + 1; g.addEdge2(from, to, style); };
+                    }
+                    g.addEdge(inputValue, inputNode);
+                    break;
+                case document.getElementById('button-show'):
+                    document.onmouseout(e);
+                    dst = document.forms.LinkedListForm.elements.input1.value;
+                    renderSVG();
+                    break;
+                case document.getElementById('cross'):
+                    document.body.removeChild(createdContainer);
+                    document.body.removeChild(createdCross);
+                    createdContainer = createdCross = render = dst = null;
+            }
+        })
+        
+        var createdTooltip = null;
+        
+        function renderToolTip(text){
+            var div = document.createElement('div');
+            div.classList.add('tooltip');
+            div.textContent = text;
+            document.body.appendChild(div);
+            div.style.top = document.querySelector('main').getBoundingClientRect().top + document.documentElement.scrollTop + document.querySelector('main').offsetHeight + 10 + 'px';
+            div.style.left = document.querySelector('main').getBoundingClientRect().left + (document.querySelector('main').offsetWidth - div.offsetWidth) / 2 + 'px';            
+
+            createdTooltip = div;
+        }
+        
+        document.onmouseover = function(e){
+            var target = e.target;
+            
+            switch(target){
+                case document.getElementById('button-connect'): renderToolTip('Введите узел для удаления'); break;
+                case document.querySelector('input[name="input1"]'): renderToolTip('Введите значение узла'); break;
+                case document.querySelector('input[name="input2"]'): renderToolTip('Введите узел для соединения'); break;
+                case document.getElementById('button-show'): renderToolTip("Введите в первое поле\nдо куда рассчитать путь"); break;
+            }           
+        };
+        
+        document.onmouseout = function(e){
+            var target = e.target;
+            
+            if(target == document.getElementById('button-connect') || target == document.querySelector('input[name="input1"]') || target == document.querySelector('input[name="input2"]') || target == document.getElementById('button-show')){
+                if(createdTooltip){
+                    document.getElementById('button-connect').classList.remove('tooltip');
+                    document.body.removeChild(createdTooltip);
+                    createdTooltip = null;
+                } 
+            }                         
+        };       
+        
+        var createdCross = null,
+            createdContainer = null;        
+        
+        function renderSVG(){
+            var container = document.createElement('svg');
+            container.id = 'graphDiv';
+            container.classList.add('show-area');
+            document.body.appendChild(container);
+            createdContainer = container;
+            
+            var cross = document.createElement('div');
+            cross.id = 'cross';
+            cross.classList.add('cross');
+            document.body.appendChild(cross);
+            createdCross = cross;
+            
+            var height = 600;
+            var width = 1200;
+            
+            
+    
+            //var g = new Graph();
+            /* creating nodes and passing the new renderer function to overwrite the default one */
+            /*
+            g.addNode("New York", {render:render}); // TODO add currying support for nicer code
+            g.addNode("Berlin", {render:render});
+            g.addNode("Tel Aviv", {render:render});
+            g.addNode("Tokyo", {render:render});
+            g.addNode("Roma", {render:render});
+            g.addNode("Madrid", {render:render});
+            */
+            
+            /* modify the addEdge function to attach random weights */
+            
+
+            /* connections */
+           // g.addEdge("Tokyo", "Tel Aviv"/*, {weight:9, directed: true, stroke : "#bfa"}*/); // also supports directed graphs, but currently doesn't look that nice
+            /*
+            g.addEdge("Tokyo", "New York");
+            g.addEdge("Tokyo", "Berlin");
+            g.addEdge("Tel Aviv", "Berlin");
+            g.addEdge("Tel Aviv", "New York");
+            g.addEdge("Tel Aviv", "Roma");
+            g.addEdge("Roma", "New York");
+            g.addEdge("Berlin", "New York");
+            g.addEdge("Madrid", "New York");
+            g.addEdge("Madrid", "Roma");
+            g.addEdge("Madrid", "Tokyo");
+            
+            */
+            
+            /* random edge weights (our undirected graph is modelled as a bidirectional graph) */
+        /*    for(e in g.edges)
+                if(g.edges[e].backedge != undefined) {
+                    g.edges[e].weight = Math.floor(Math.random()*10) + 1;
+                    g.edges[e].backedge.weight = g.edges[e].weight;
+                }
+        */
+            /* layout the graph using the Spring layout implementation */
+            var layouter = new Graph.Layout.Spring(g);
+            layouter.layout();
+
+            /* draw the graph using the RaphaelJS draw implementation */
+            var renderer = new Graph.Renderer.Raphael('graphDiv', g, width, height);
+
+            /* calculating the shortest paths via Dijkstra */
+            dijkstra(g, g.nodes[dst]);
+
+            /* colourising the shortest paths and setting labels */
+            for(e in g.edges) {
+                g.edges[e].style = { label : g.edges[e].weight };
+                if(g.edges[e].target.predecessor === g.edges[e].source || g.edges[e].source.predecessor === g.edges[e].target) {
+                    g.edges[e].style.stroke = "#bfa";
+                    g.edges[e].style.fill = "#56f";
+                } else {
+                    g.edges[e].style.stroke = "#aaa";
+                }
+            }
+
+            renderer.draw();
+        } 
+    </script>
+</body>
+</html>
